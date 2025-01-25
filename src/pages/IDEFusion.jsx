@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { gsap } from 'gsap';
 
+import { v4 as uuidV4 } from 'uuid';
+import { ScrollTrigger } from 'gsap/all';
+
+gsap.registerPlugin(ScrollTrigger);
+
+
 const LoadingScreen = () => {
     const logoRef = useRef(null);
     const textRef = useRef(null);
@@ -44,6 +50,9 @@ const IDEFusion = () => {
   const logoRef = useRef(null);
   const funFactRef = useRef(null);
 
+  const [roomId, setRoomId] = useState('');
+  const [username, setUsername] = useState('');
+
   const funFacts = [
     "Developers spend 70% of their time debugging!",
     "The first computer bug was an actual moth.",
@@ -56,6 +65,12 @@ const IDEFusion = () => {
     const randomFact = funFacts[Math.floor(Math.random() * funFacts.length)];
     funFactRef.current.textContent = randomFact;
   };
+
+  const createNewRoom = (e) => {
+    e.preventDefault();
+    const id = uuidV4();
+    setRoomId(id);
+  } 
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 2000);
@@ -90,6 +105,8 @@ const IDEFusion = () => {
               id="roomId"
               type="text"
               placeholder="Room Id"
+              onChange={(e) => setRoomId(e.target.value)}
+              value={roomId}
               className="w-full mt-2 p-3 bg-[#252742] border border-[#3c3f5b] rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#4fb0ff]"
             />
           </div>
@@ -101,6 +118,8 @@ const IDEFusion = () => {
               id="username"
               type="text"
               placeholder="Your Name"
+              onChange={(e) => setUsername(e.target.value)}
+              value={username}
               className="w-full mt-2 p-3 bg-[#252742] border border-[#3c3f5b] rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#4fb0ff]"
             />
           </div>
@@ -112,7 +131,7 @@ const IDEFusion = () => {
         </form>
         <p className="text-center text-sm text-gray-500 mt-5">
           Don&apos;t have an invite? Create a{' '}
-          <a href="#" className="text-[#4fb0ff] hover:underline">
+          <a href="#" onClick={createNewRoom} className="text-[#4fb0ff] hover:underline">
             new room
           </a>
         </p>
