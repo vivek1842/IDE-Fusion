@@ -2,16 +2,42 @@ import React, { useEffect, useState, useRef } from 'react';
 import { gsap } from 'gsap';
 
 const LoadingScreen = () => {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-[#10121b]">
-      <div className="flex flex-col items-center">
-        <div className="loader bg-gradient-to-br from-[#4fb0ff] to-[#3998e6] h-12 w-12 rounded-full animate-spin"></div>
-        <p className="text-gray-300 mt-4 text-sm">Loading IDE Fusion...</p>
+    const logoRef = useRef(null);
+    const textRef = useRef(null);
+  
+    useEffect(() => {
+      // GSAP animation for the logo
+      gsap.fromTo(
+        logoRef.current,
+        { opacity: 0, scale: 0.8 },
+        { opacity: 1, scale: 1, duration: 1.5, ease: "power3.out", repeat: -1, yoyo: true }
+      );
+  
+      // GSAP animation for the text
+      gsap.to(textRef.current, {
+        text: "Loading IDE Fusion...",
+        duration: 3,
+        repeat: -1,
+        ease: "none",
+        repeatDelay: 0.5,
+      });
+    }, []);
+  
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#10121b]">
+        <div className="flex flex-col items-center">
+          <h1
+            ref={logoRef}
+            className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#4fb0ff] to-[#3998e6]"
+          >
+            IDE Fusion
+          </h1>
+          <p ref={textRef} className="text-gray-300 mt-4 text-sm font-mono"></p>
+        </div>
       </div>
-    </div>
-  );
-};
-
+    );
+  };
+  
 const IDEFusion = () => {
   const [isLoading, setIsLoading] = useState(true);
   const taglineRef = useRef(null);
