@@ -37,7 +37,7 @@ const LoadingScreen = () => {
       </div>
     );
   };
-  
+
 const IDEFusion = () => {
   const [isLoading, setIsLoading] = useState(true);
   const taglineRef = useRef(null);
@@ -84,12 +84,12 @@ const IDEFusion = () => {
         <form className="space-y-5">
           <div>
             <label htmlFor="roomId" className="block text-sm font-medium text-gray-300">
-              Enter ROOM ID
+              ROOM ID
             </label>
             <input
               id="roomId"
               type="text"
-              placeholder="ROOM ID"
+              placeholder="Room Id"
               className="w-full mt-2 p-3 bg-[#252742] border border-[#3c3f5b] rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#4fb0ff]"
             />
           </div>
