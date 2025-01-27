@@ -98,22 +98,22 @@ const IDEFusion = () => {
         </div>
         <form className="space-y-5">
           <div>
-            <label htmlFor="roomId" className="block text-sm font-medium text-gray-300">
+            {/* <label htmlFor="roomId" className="block text-sm font-medium text-gray-300">
               ROOM ID
-            </label>
+            </label> */}
             <input
               id="roomId"
               type="text"
-              placeholder="Room Id"
+              placeholder="Room ID"
               onChange={(e) => setRoomId(e.target.value)}
               value={roomId}
               className="w-full mt-2 p-3 bg-[#252742] border border-[#3c3f5b] rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#4fb0ff]"
             />
           </div>
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-300">
+            {/* <label htmlFor="username" className="block text-sm font-medium text-gray-300">
               Username
-            </label>
+            </label> */}
             <input
               id="username"
               type="text"
@@ -135,7 +135,7 @@ const IDEFusion = () => {
             new room
           </a>
         </p>
-        <div className="text-center mt-8">
+        {/* <div className="text-center mt-8">
           <p className="text-sm text-gray-400">Feeling bored? Try our fun fact generator!</p>
           <button
             onClick={generateFunFact}
@@ -143,7 +143,7 @@ const IDEFusion = () => {
             Generate Fun Fact
           </button>
           <p ref={funFactRef} className="text-gray-300 mt-4 text-sm italic"></p>
-        </div>
+        </div> */}
       </div>
     </div>
   );
