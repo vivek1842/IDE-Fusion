@@ -89,6 +89,10 @@ const IDEFusion = () => {
     }
   }
 
+  const handleInputKey = (e) => {
+    if(e.code === 'Enter') joinRoom();
+  }
+
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 2000);
 
@@ -123,6 +127,7 @@ const IDEFusion = () => {
               type="text"
               placeholder="Room ID"
               onChange={(e) => setRoomId(e.target.value)}
+              onKeyUp={handleInputKey}
               value={roomId}
               className="w-full mt-2 p-3 bg-[#252742] border border-[#3c3f5b] rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#4fb0ff]"
             />
@@ -136,6 +141,7 @@ const IDEFusion = () => {
               type="text"
               placeholder="Your Name"
               onChange={(e) => setUsername(e.target.value)}
+              onKeyUp={handleInputKey}
               value={username}
               className="w-full mt-2 p-3 bg-[#252742] border border-[#3c3f5b] rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#4fb0ff]"
             />
