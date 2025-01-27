@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { gsap } from 'gsap';
-
+import toast from 'react-hot-toast';
 import { v4 as uuidV4 } from 'uuid';
 import { ScrollTrigger } from 'gsap/all';
+import { useNavigate } from 'react-router-dom';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -50,6 +51,8 @@ const IDEFusion = () => {
   const logoRef = useRef(null);
   const funFactRef = useRef(null);
 
+  const navigate = useNavigate();
+
   const [roomId, setRoomId] = useState('');
   const [username, setUsername] = useState('');
 
@@ -70,7 +73,21 @@ const IDEFusion = () => {
     e.preventDefault();
     const id = uuidV4();
     setRoomId(id);
+    toast.success('Created a new room');
   } 
+
+  const joinRoom = (e) => {
+    if(!roomId || !username) {
+        if(!roomId) toast.error('Enter a Room ID');
+        else toast.error('Enter your username');
+    } else {
+        navigate(`/editor/${roomId}`, {
+            state: {
+                username,
+            }
+        })
+    }
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 2000);
@@ -96,7 +113,7 @@ const IDEFusion = () => {
           <h1 ref={logoRef} className="text-4xl font-extrabold text-[#4fb0ff]">IDE Fusion</h1>
           <p ref={taglineRef} className="text-sm text-gray-400 italic">&quot;Code. Collaborate. Conquer.&quot;</p>
         </div>
-        <form className="space-y-5">
+        <div className="space-y-5">
           <div>
             {/* <label htmlFor="roomId" className="block text-sm font-medium text-gray-300">
               ROOM ID
@@ -125,10 +142,12 @@ const IDEFusion = () => {
           </div>
           <button
             type="submit"
-            className="w-full bg-[#4fb0ff] hover:bg-[#3998e6] text-[#10121b] py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-[#4fb0ff]/50">
+            className="w-full bg-[#4fb0ff] hover:bg-[#3998e6] text-[#10121b] py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-[#4fb0ff]/50"
+            onClick={joinRoom}
+            >
             Join Room
           </button>
-        </form>
+        </div>
         <p className="text-center text-sm text-gray-500 mt-5">
           Don&apos;t have an invite? Create a{' '}
           <a href="#" onClick={createNewRoom} className="text-[#4fb0ff] hover:underline">
