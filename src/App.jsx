@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom" 
 import Home from "./pages/Home"
-import Editor from "./pages/Editor"
 import IDEFusion from "./pages/IDEFusion"
 import { Toaster } from "react-hot-toast"
+import EditorPage from "./pages/EditorPage"
 
 const App = () => {
   return (
@@ -32,7 +32,7 @@ const App = () => {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<IDEFusion />}></Route>
-          <Route path="/editor/:roomId" element={<Editor />}></Route>
+          <Route path="/editor/:roomId" element={<EditorPage />}></Route>
         </Routes>
       </BrowserRouter>
     </>
