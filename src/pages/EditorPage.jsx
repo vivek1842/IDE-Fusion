@@ -1,33 +1,42 @@
+/* eslint-disable react/prop-types */
 import React, { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import Editor from '@monaco-editor/react';
 import Avatar from 'react-avatar';
 import { initSocket } from '../socket';
 import Actions from '../Actions';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const EditorPage = () => {
   const socketRef = useRef(null);
   const location = useLocation();
+  
+  const {roomId} = useParams();
+  // const params = useParams();
+  // console.log(params);
+
+  
   const reactNavigator = useNavigate();
 
   useEffect(() => {
     const init = async () => {
-      socketRef.current = initSocket();
+      socketRef.current = await initSocket();
       socketRef.current.on('connect_error', (err) => handleErrors(err));
       socketRef.current.on('connect_failed', (err) => handleErrors(err));
 
       const handleErrors = (e) => {
         console.log("Socket error:"+e);
         toast.error('Socket connection failed, Try again later.');
-        reactNavigator('/')
+        reactNavigator('/');
       }
 
       socketRef.current.emit(Actions.JOIN, {
         roomId,
         username: location.state?.username,
       });
+      console.log(roomId, location.state);
+      
     }
     init();
   },[])
@@ -37,7 +46,7 @@ const EditorPage = () => {
     { socketsId: 1, name: 'Rakesh K', color: '#4fb0ff' },
     { socketsId: 2, name: 'Priya S', color: '#ff6f91' },
   ]);
-  const [roomId] = useState('1234-5678-9012');
+  // const [roomId] = useState('1234-5678-9012');
   const [code, setCode] = useState('// Write your code here');
   const [output, setOutput] = useState('');
   const [showOutput, setShowOutput] = useState(false);
