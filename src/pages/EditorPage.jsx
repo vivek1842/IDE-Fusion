@@ -2,8 +2,37 @@ import React, { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import Editor from '@monaco-editor/react';
 import Avatar from 'react-avatar';
+import { initSocket } from '../socket';
+import Actions from '../Actions';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const EditorPage = () => {
+  const socketRef = useRef(null);
+  const location = useLocation();
+  const reactNavigator = useNavigate();
+
+  useEffect(() => {
+    const init = async () => {
+      socketRef.current = initSocket();
+      socketRef.current.on('connect_error', (err) => handleErrors(err));
+      socketRef.current.on('connect_failed', (err) => handleErrors(err));
+
+      const handleErrors = (e) => {
+        console.log("Socket error:"+e);
+        toast.error('Socket connection failed, Try again later.');
+        reactNavigator('/')
+      }
+
+      socketRef.current.emit(Actions.JOIN, {
+        roomId,
+        username: location.state?.username,
+      });
+    }
+    init();
+  },[])
+
+
   const [users, setUsers] = useState([
     { socketsId: 1, name: 'Rakesh K', color: '#4fb0ff' },
     { socketsId: 2, name: 'Priya S', color: '#ff6f91' },
@@ -71,6 +100,10 @@ const EditorPage = () => {
     };
     return languages[language] || 63; // Default to JavaScript
   };
+
+  if(!location.state) {
+    return <Navigate to='/' />
+  }
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-[#0f0f16] via-[#10121b] to-[#1c1f26] text-gray-200">
