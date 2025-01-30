@@ -57,19 +57,16 @@ io.on('connection', (socket) => {
     })
 
     // Handle disconnections
-    socket.on('disconnect', () => {
-        const username = userSocketMap[socket.id];
-        const roomId = Object.keys(socket.rooms).find(room => room !== socket.id); // Get the roomId the user was in
-        delete userSocketMap[socket.id]; // Remove user from map
-        console.log(`User ${username} disconnected from room ${roomId}`);
-
-        // Notify others in the room
-        const clients = getAllConnectedClients(roomId);
-        clients.forEach(({ socketId }) => {
-            if (socketId !== socket.id) {
-                io.to(socketId).emit(Actions.LEFT, { username });
-            }
-        });
+    socket.on('disconnecting', () => { //should not be'disconnect' as it will remove all rooms available
+        const rooms = [...socket.rooms];
+        rooms.forEach((roomId) => {
+            socket.in(roomId).emit(Actions.DISCONNECTED, {
+                socketId: socket.id,
+                username: userSocketMap[socket.id],
+            })
+        })
+        delete userSocketMap[socket.id];
+        socket.leave(); //leave the room
     });
 
     
