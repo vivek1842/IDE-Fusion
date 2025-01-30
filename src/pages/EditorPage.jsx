@@ -9,6 +9,17 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast';
 
 const EditorPage = () => {
+
+  const [code, setCode] = useState('// Write your code here');
+  const [output, setOutput] = useState('');
+  const [showOutput, setShowOutput] = useState(false);
+  const [language, setLanguage] = useState('javascript'); // Default language
+  const [customInput, setCustomInput] = useState('');
+
+  const sidebarRef = useRef(null);
+  const editorRef = useRef(null);
+
+
   const socketRef = useRef(null);
   const location = useLocation();
   
@@ -16,12 +27,41 @@ const EditorPage = () => {
   // const params = useParams();
   // console.log(params);
 
+  const [users, setUsers] = useState([]);
+
   
   const reactNavigator = useNavigate();
 
+  const isSocketInitialized = useRef(false);
+
   useEffect(() => {
+    // GSAP Animation
+    gsap.fromTo(
+      sidebarRef.current,
+      { x: -50, opacity: 0 },
+      { x: 0, opacity: 1, duration: 1, ease: 'power3.out' }
+    );
+
+    gsap.fromTo(
+      editorRef.current,
+      { opacity: 0 },
+      { opacity: 1, duration: 1, delay: 0.5, ease: 'power3.out' }
+    );
+
+    console.log('EditorPage component mounted');
+    if (isSocketInitialized.current) return; // Prevent multiple initializations
+    isSocketInitialized.current = true;
+
+    const isUserAlreadyConnected = localStorage.getItem(`user-connected-${roomId}`);
+    if (isUserAlreadyConnected) {
+        return; // Avoid creating a second socket connection if already connected
+    }
+
+    localStorage.setItem(`user-connected-${roomId}`, 'true');
+
     const init = async () => {
       socketRef.current = await initSocket();
+
       socketRef.current.on('connect_error', (err) => handleErrors(err));
       socketRef.current.on('connect_failed', (err) => handleErrors(err));
 
@@ -36,39 +76,38 @@ const EditorPage = () => {
         username: location.state?.username,
       });
       console.log(roomId, location.state);
+
+      // listening JOINED Event
+      socketRef.current.on(Actions.JOINED, ({ clients, username, socketId}) => {
+        if(username !== location.state?.username) {
+          toast.success(`${username} joined the room.`)
+          console.log(`${username} joined`);
+        }
+        // const uniqueClients = Array.from(new Set(clients.map(client => client.socketId)))
+        // .map(socketId => {
+        //   return clients.find(client => client.socketId === socketId);
+        // });
+
+        setUsers(clients);
+      })
       
     }
+
     init();
-  },[])
+    console.log('Users : '+users);
+    
+    return () => {
+      localStorage.removeItem(`user-connected-${roomId}`); // Cleanup when the user leaves
+
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      isSocketInitialized.current = false; 
+    };
 
 
-  const [users, setUsers] = useState([
-    { socketsId: 1, name: 'Rakesh K', color: '#4fb0ff' },
-    { socketsId: 2, name: 'Priya S', color: '#ff6f91' },
-  ]);
-  // const [roomId] = useState('1234-5678-9012');
-  const [code, setCode] = useState('// Write your code here');
-  const [output, setOutput] = useState('');
-  const [showOutput, setShowOutput] = useState(false);
-  const [language, setLanguage] = useState('javascript'); // Default language
-  const [customInput, setCustomInput] = useState('');
-
-  const sidebarRef = useRef(null);
-  const editorRef = useRef(null);
-
-  useEffect(() => {
-    gsap.fromTo(
-      sidebarRef.current,
-      { x: -50, opacity: 0 },
-      { x: 0, opacity: 1, duration: 1, ease: 'power3.out' }
-    );
-
-    gsap.fromTo(
-      editorRef.current,
-      { opacity: 0 },
-      { opacity: 1, duration: 1, delay: 0.5, ease: 'power3.out' }
-    );
-  }, []);
+  },[location.state, reactNavigator, roomId])
 
   const handleCopyRoomId = () => {
     navigator.clipboard.writeText(roomId);
@@ -119,33 +158,43 @@ const EditorPage = () => {
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className="w-64 bg-gradient-to-b from-[#161b22] to-[#10121b] shadow-xl p-4 flex flex-col justify-between"
+        className="w-full sm:w-64 md:w-72 bg-gradient-to-b from-[#161b22] to-[#10121b] shadow-xl p-4 sm:p-6 flex flex-col justify-between"
       >
         <div>
-          <h2 className="text-2xl font-extrabold text-[#4fb0ff] mb-4">IDE Fusion</h2>
-          <p className="text-sm text-gray-400 mb-6 italic">Room ID: {roomId}</p>
-          <div className="space-y-4">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#4fb0ff] mb-4 sm:mb-6">
+            IDE Fusion
+          </h2>
+          <p className="text-sm text-gray-400 mb-4 sm:mb-6">
+            <b>Room ID:</b> <i>{roomId}</i>
+          </p>
+          {/* Grid layout for users */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {users.map((user) => (
               <div
-                key={user.socketsId}
-                className="flex items-center gap-3 p-3 rounded-lg bg-[#252742] hover:bg-[#2e3248] transition-all duration-150"
+                key={user.socketId}
+                className="flex flex-col items-center gap-2 sm:gap-3"
               >
-                <Avatar name={user.name} size="40" round="10px" />
-                <span className="font-medium">{user.name}</span>
+                <Avatar
+                  name={user.username}
+                  size="40"
+                  round="10px"
+                  className="sm:w-12 sm:h-12"
+                />
+                <span className="font-medium text-sm sm:text-base text-center break-words">
+                  {user.username}
+                </span>
               </div>
             ))}
           </div>
         </div>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 mt-6 sm:mt-8">
           <button
             onClick={handleCopyRoomId}
-            className="w-full bg-[#4fb0ff] hover:bg-[#3998e6] text-[#10121b] py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring focus:ring-[#4fb0ff]/50"
+            className="w-full bg-[#4fb0ff] hover:bg-[#3998e6] text-[#10121b] py-2 sm:py-3 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring focus:ring-[#4fb0ff]/50"
           >
             Copy Room ID
           </button>
-          <button
-            className="w-full bg-red-500 hover:bg-red-400 text-white py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring focus:ring-red-500/50"
-          >
+          <button className="w-full bg-red-500 hover:bg-red-400 text-white py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring focus:ring-red-500/50">
             Leave
           </button>
         </div>
@@ -179,16 +228,16 @@ const EditorPage = () => {
 
         {/* Editor */}
         <Editor
-          height={showOutput ? '50vh' : '80vh'}
+          height={showOutput ? "50vh" : "80vh"}
           defaultLanguage="javascript"
           value={code}
-          onChange={(value) => setCode(value || '')}
+          onChange={(value) => setCode(value || "")}
           theme="vs-dark"
           options={{
             fontSize: 16,
             minimap: { enabled: false },
             scrollbar: { verticalScrollbarSize: 6 },
-            wordWrap: 'on',
+            wordWrap: "on",
             scrollBeyondLastLine: false,
             smoothScrolling: true,
           }}

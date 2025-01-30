@@ -94,16 +94,15 @@ const IDEFusion = () => {
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 2000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
+    
     if (!isLoading) {
       gsap.fromTo(taglineRef.current, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1, delay: 0.5 });
       gsap.fromTo(logoRef.current, { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 1 });
     }
+
+    const timer = setTimeout(() => setIsLoading(false), 2000);
+
+    return () => clearTimeout(timer);
   }, [isLoading]);
 
   if (isLoading) {
