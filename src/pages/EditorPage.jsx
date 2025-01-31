@@ -17,124 +17,177 @@ const EditorPage = () => {
   const [showOutput, setShowOutput] = useState(false);
   const [language, setLanguage] = useState('javascript'); // Default language
   const [customInput, setCustomInput] = useState('');
-
-  const monacoRef = useRef(null);
-  const isUserTyping = useRef(false);
-  const cursorDecorations = useRef({});
-
-  const sidebarRef = useRef(null);
-  const editorRef = useRef(null);
-
-  const socketRef = useRef(null);
-  const location = useLocation();
-  
-  const {roomId} = useParams();
-  // const params = useParams();
-  // console.log(params);
-
   const [users, setUsers] = useState([]);
+  
+  const isUserTyping = useRef(false);
+  const socketRef = useRef(null);
+  const monacoRef = useRef(null);
+  const editorRef = useRef(null);
+  const sidebarRef = useRef(null);
+  const cursorStylesRef = useRef(new Map());
+  const decorationRefs = useRef({});
+  const location = useLocation();
+  const reactNavigator = useNavigate();
+  const {roomId} = useParams();
 
   
-  const reactNavigator = useNavigate();
-
-  const isSocketInitialized = useRef(false);
 
   useEffect(() => {
     // GSAP Animation
     gsap.fromTo(
       sidebarRef.current,
       { x: -50, opacity: 0 },
-      { x: 0, opacity: 1, duration: 1, ease: 'power3.out' }
+      { x: 0, opacity: 1, duration: 1, ease: "power3.out" }
     );
 
     gsap.fromTo(
       editorRef.current,
       { opacity: 0 },
-      { opacity: 1, duration: 1, delay: 0.5, ease: 'power3.out' }
+      { opacity: 1, duration: 1, delay: 0.5, ease: "power3.out" }
     );
 
-    console.log('EditorPage component mounted');
-    if (isSocketInitialized.current) return; // Prevent multiple initializations
-    isSocketInitialized.current = true;
+    const initializeSocket = async () => {
+      try {
+        socketRef.current = await initSocket();
 
-    const isUserAlreadyConnected = localStorage.getItem(`user-connected-${roomId}`);
-    if (isUserAlreadyConnected) {
-        return; // Avoid creating a second socket connection if already connected
-    }
+        // listening SYNC Users Event
+        const handleSyncUsers = (clients) => {
+          setUsers(clients);
+        };
 
-    localStorage.setItem(`user-connected-${roomId}`, 'true');
+        // listening JOINED Event
+        const handleUserJoined = ({ clients, username, socketId }) => {
+          if (username !== location.state?.username) {
+            toast.success(`${username} joined`);
+            console.log(`${username} joined`);
+          }
+          setUsers(clients);
+        };
 
-    const init = async () => {
-      socketRef.current = await initSocket();
+        // listening DISCONNECTED Event
+        const handleUserLeft = ({ socketId, username }) => {
+          toast.success(`${username} left`);
+          setUsers((prev) => {
+            return prev.filter((user) => user.socketId !== socketId);
+          });
+        };
 
-      socketRef.current.on('connect_error', (err) => handleErrors(err));
-      socketRef.current.on('connect_failed', (err) => handleErrors(err));
+        //listening code change
+        const handleCodeChange = (newCode) => {
+          isUserTyping.current = false;
+          setCode(newCode);
+        };
 
-      const handleErrors = (e) => {
-        console.log("Socket error:"+e);
-        toast.error('Socket connection failed, Try again later.');
-        reactNavigator('/');
+        // Receive initial code when joining
+        const handleSyncCode = (code) => {
+          setCode(code);
+        };
+
+        const handleRemoteCursor = ({ position, username, color }) => {
+          if (!editorRef.current || username === location.state?.username)
+            return;
+          // Cleanup previous decorations
+          if (decorationRefs.current[username]) {
+            editorRef.current.deltaDecorations(
+              [decorationRefs.current[username].id],
+              []
+            );
+            clearTimeout(decorationRefs.current[username].timeout);
+          }
+
+          // Create dynamic CSS
+          const className = `cursor-${username.replace(/\W/g, "")}`;
+          if (!cursorStylesRef.current.has(className)) {
+            const style = document.createElement("style");
+            style.textContent = `
+          .${className} {
+            background: ${color} !important;
+            border-left: 2px solid ${color} !important;
+          }
+          .${className}::after {
+            content: '${username}';
+            background: ${color} !important;
+          }
+        `;
+            document.head.appendChild(style);
+            cursorStylesRef.current.set(className, style);
+          }
+
+          // Create new decoration
+          const decorationId = editorRef.current.deltaDecorations(
+            [],
+            [
+              {
+                range: new monacoRef.current.Range(
+                  position.lineNumber,
+                  position.column,
+                  position.lineNumber,
+                  position.column
+                ),
+                options: {
+                  className,
+                  stickiness:
+                    monacoRef.current.editor.TrackedRangeStickiness
+                      .NeverGrowsWhenTypingAtEdges,
+                  afterContentClassName: `${className}-label`,
+                },
+              },
+            ]
+          );
+
+          // Store reference with cleanup timer
+          decorationRefs.current[username] = {
+            id: decorationId[0],
+            timeout: setTimeout(() => {
+              editorRef.current.deltaDecorations([decorationId[0]], []);
+              delete decorationRefs.current[username];
+            }, 2000),
+          };
+        };
+
+        const handleErrors = (e) => {
+          console.log("Socket error:" + e);
+          toast.error("Socket connection failed, Try again later.");
+          reactNavigator("/");
+        };
+
+        // Set up core listeners first
+        socketRef.current
+          .on("connect_error", handleErrors)
+          .on("connect_failed", handleErrors)
+          .on(Actions.SYNC_USERS, handleSyncUsers)
+          .on(Actions.JOINED, handleUserJoined)
+          .on(Actions.DISCONNECTED, handleUserLeft)
+          .on(Actions.CODE_CHANGE, handleCodeChange)
+          .on(Actions.SYNC_CODE, handleSyncCode)
+          .on(Actions.CURSOR_POSITION, handleRemoteCursor);
+
+        socketRef.current.emit(Actions.JOIN, {
+          roomId,
+          username: location.state?.username,
+        });
+        console.log(roomId, location.state);
+      } catch (error) {
+        console.error("Socket initialization failed:", error);
+        reactNavigator("/");
       }
+    };
 
-      socketRef.current.emit(Actions.JOIN, {
-        roomId,
-        username: location.state?.username,
-      });
-      console.log(roomId, location.state);
+    initializeSocket();
+    console.log("Users : " + users);
 
-      // listening SYNC Users Event
-      socketRef.current.on(Actions.SYNC_USERS, (clients) => {
-        setUsers(clients);
-      });
-
-      // listening JOINED Event
-      socketRef.current.on(Actions.JOINED, ({ clients, username, socketId}) => {
-        if(username !== location.state?.username) {
-          toast.success(`${username} joined the room.`)
-          console.log(`${username} joined`);
-        }
-        setUsers(clients);
-      })
-
-      // listening DISCONNECTED Event
-      socketRef.current.on(Actions.DISCONNECTED, ({ socketId, username}) => {
-        toast.success(`${username} left the room.`);
-        setUsers((prev) => {
-          return prev.filter((user) => user.socketId !== socketId);
-        })
-      })
-
-      //synchronization listener
-      socketRef.current.on(Actions.CODE_CHANGE, (newCode) => {
-        isUserTyping.current = false;
-        setCode(newCode);
-      });
-
-      // Receive initial code when joining
-      socketRef.current.on(Actions.SYNC_CODE, (code) => {
-        setCode(code);
-      });
-      
-    }
-
-    init();
-    console.log('Users : '+users);
-    
     return () => {
-      localStorage.removeItem(`user-connected-${roomId}`); // Cleanup when the user leaves
-
       if (socketRef.current) {
-        socketRef.current.off(Actions.JOINED);
-        socketRef.current.off(Actions.SYNC_USERS);
-        socketRef.current.off(Actions.DISCONNECTED);
         socketRef.current.disconnect();
         socketRef.current = null;
       }
-      isSocketInitialized.current = false; 
+      // Cleanup cursor styles
+      cursorStylesRef.current.forEach((style) =>
+        document.head.removeChild(style)
+      );
+      cursorStylesRef.current.clear();
     };
-
-
-  },[]);
+  }, []);
 
   const handleEditorChange = (value) => {
     if (isUserTyping.current) {
@@ -148,94 +201,35 @@ const EditorPage = () => {
 
   const handleEditorMount = (editor,  monacoInstance) => {
     monacoRef.current = monacoInstance;
-
-    const styleElement = document.createElement('style');
-    document.head.appendChild(styleElement);
-
-    let timeoutId = null;
+    editorRef.current = editor;
+    let cursorTimeout;
 
     editor.onDidChangeCursorPosition((e) => {
-      if (timeoutId) return;
-      timeoutId = setTimeout(() => {
-        socketRef.current.emit(Actions.CURSOR_POSITION, {
-          roomId,
-          position: e.position,
-          username: location.state?.username,
-          color: generateUserColor(location.state?.username)
-        });
-        timeoutId = null;
+      isUserTyping.current = true;
+      clearTimeout(cursorTimeout);
+      
+      cursorTimeout = setTimeout(() => {
+        if (socketRef.current?.connected) {
+          socketRef.current.emit(Actions.CURSOR_POSITION, {
+            roomId,
+            position: e.position,
+            username: location.state?.username,
+            color: generateUserColor(location.state?.username)
+          });
+        }
       }, 100);
     });
 
-    // Receive cursor positions
-    socketRef.current.on(Actions.CURSOR_POSITION, ({ position, username, color }) => {
-      // Create unique class name
-      const className = `remote-cursor-${username.replace(/[^a-z0-9]/gi, "")}`;
-
-      // Add dynamic CSS
-      if (!styleElement.innerHTML.includes(className)) {
-        styleElement.innerHTML += `
-        .${className} {
-          background: ${color} !important;
-          width: 2px !important;
-        }
-        .${className}::after {
-          content: '${username}';
-          background: ${color} !important;
-        }
-      `;
-      }
-
-      // Clear previous decoration
-      if (cursorDecorations.current[username]) {
-        editor.deltaDecorations(
-          [cursorDecorations.current[username].decorationId],
-          []
-        );
-        clearTimeout(cursorDecorations.current[username].timeout);
-      }
-
-      // Create new decoration
-      const decorationId = editor.deltaDecorations(
-        [],
-        [
-          {
-            range: new monacoRef.current.Range(
-              position.lineNumber,
-              position.column,
-              position.lineNumber,
-              position.column
-            ),
-            options: {
-              className,
-              stickiness:
-                monacoRef.current.editor.TrackedRangeStickiness
-                  .NeverGrowsWhenTypingAtEdges,
-              afterContentClassName: `${className}-label`,
-            },
-          },
-        ]
-      );
-
-      // Store reference with timeout
-      cursorDecorations.current[username] = {
-        decorationId: decorationId[0],
-        timeout: setTimeout(() => {
-          editor.deltaDecorations([decorationId[0]], []);
-          delete cursorDecorations.current[username];
-        }, 2000),
-      };
+    editor.onDidBlurEditorWidget(() => {
+      isUserTyping.current = false;
     });
 
-    // Cleanup on unmount
-    return () => {
-      socketRef.current?.off(Actions.CURSOR_POSITION);
-    };
+
   }
 
   const handleCopyRoomId = () => {
     navigator.clipboard.writeText(roomId);
-    alert('Room ID copied to clipboard!');
+    toast.success('Room ID copied to clipboard!')
   };
 
   const handleRunCode = async () => {
@@ -368,20 +362,10 @@ const EditorPage = () => {
               options={{
                 fontSize: 14,
                 minimap: { enabled: false },
-                scrollbar: { verticalScrollbarSize: 6 },
-                wordWrap: "on",
-                scrollBeyondLastLine: false,
-                smoothScrolling: true,
                 automaticLayout: true,
-                cursorBlinking: "smooth",
-                cursorStyle: "line",
+                cursorBlinking: 'smooth',
+                cursorStyle: 'line',
                 cursorWidth: 2,
-                quickSuggestions: false,
-                suggestOnTriggerCharacters: false,
-                selectionHighlight: false,
-                renderLineHighlight: "none",
-                lineNumbersMinChars: 3,
-                scrollBeyondLastColumn: 5,
               }}
               beforeMount={(monaco) => {
                 monaco.editor.setTheme('vs-dark');
