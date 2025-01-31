@@ -3,6 +3,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import Actions from './src/Actions.js';
+import { generateUserColor } from './src/Colours.js';
 
 
 const app = express();
@@ -27,26 +28,7 @@ const getAllConnectedClients = (roomId) => {
     return clients;
 }
 
-// color generation utility function
-const generateUserColor = (username) => {
-    const colors = [
-      '#FF6B6B', // Red
-      '#4ECDC4', // Teal
-      '#45B7D1', // Blue
-      '#96CEB4', // Green
-      '#FFEEAD', // Yellow
-      '#D4A5A5', // Pink
-      '#A4D4AE', // Mint
-      '#E3B8B8'  // Peach
-    ];
-    
-    // Simple hash to get consistent color for same username
-    let hash = 0;
-    for (let i = 0; i < username.length; i++) {
-      hash = username.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-  };
+
 
 io.on('connection', (socket) => {
     console.log("Socket connected: "+socket.id);
@@ -104,6 +86,8 @@ io.on('connection', (socket) => {
     socket.on(Actions.CURSOR_POSITION, ({ roomId, position, username }) => {
         // Broadcast to all other clients in the room
         const color = generateUserColor(username);
+        console.log("user color:"+color);
+        
         socket.to(roomId).emit(Actions.CURSOR_POSITION, {
           position,
           username,

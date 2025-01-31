@@ -7,6 +7,7 @@ import { initSocket } from '../socket';
 import Actions from '../Actions';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { generateUserColor } from '../Colours';
 
 
 const EditorPage = () => {
@@ -17,13 +18,12 @@ const EditorPage = () => {
   const [language, setLanguage] = useState('javascript'); // Default language
   const [customInput, setCustomInput] = useState('');
 
+  const monacoRef = useRef(null);
   const isUserTyping = useRef(false);
+  const cursorDecorations = useRef({});
 
   const sidebarRef = useRef(null);
   const editorRef = useRef(null);
-
-  const monacoRef = useRef(null);
-
 
   const socketRef = useRef(null);
   const location = useLocation();
@@ -149,67 +149,87 @@ const EditorPage = () => {
   const handleEditorMount = (editor,  monacoInstance) => {
     monacoRef.current = monacoInstance;
 
-    let decorationIds = [];
+    const styleElement = document.createElement('style');
+    document.head.appendChild(styleElement);
+
     let timeoutId = null;
 
-    // Send cursor position with throttling
-    const sendCursorPosition = (position) => {
-      socketRef.current.emit(Actions.CURSOR_POSITION, {
-        roomId,
-        position,
-        username: location.state?.username,
-      });
-    };
-
-    // Throttle cursor updates
-    const throttleCursorUpdates = (e) => {
+    editor.onDidChangeCursorPosition((e) => {
       if (timeoutId) return;
       timeoutId = setTimeout(() => {
-        sendCursorPosition(e.position);
+        socketRef.current.emit(Actions.CURSOR_POSITION, {
+          roomId,
+          position: e.position,
+          username: location.state?.username,
+          color: generateUserColor(location.state?.username)
+        });
         timeoutId = null;
       }, 100);
-    };
-
-    editor.onDidChangeCursorPosition((e) => {
-      isUserTyping.current = true;
-      throttleCursorUpdates(e);
     });
 
     // Receive cursor positions
-    socketRef.current.on(Actions.CURSOR_POSITION, ({ position, username }) => {
-      // Clear previous decorations
-      decorationIds = editor.deltaDecorations(decorationIds, []);
+    socketRef.current.on(Actions.CURSOR_POSITION, ({ position, username, color }) => {
+      // Create unique class name
+      const className = `remote-cursor-${username.replace(/[^a-z0-9]/gi, "")}`;
 
-      const newDecorations = [
-        {
-          range: new monacoRef.current.Range(
-            position.lineNumber,
-            position.column,
-            position.lineNumber,
-            position.column
-          ),
-          options: {
-            className: "remote-cursor",
-            hoverMessage: { value: username },
-            stickiness:
-              monacoRef.current.editor.TrackedRangeStickiness
-                .NeverGrowsWhenTypingAtEdges,
-            afterContentClassName: `remote-cursor-${username.replace(
-              /\s/g,
-              "-"
-            )}`,
+      // Add dynamic CSS
+      if (!styleElement.innerHTML.includes(className)) {
+        styleElement.innerHTML += `
+        .${className} {
+          background: ${color} !important;
+          width: 2px !important;
+        }
+        .${className}::after {
+          content: '${username}';
+          background: ${color} !important;
+        }
+      `;
+      }
+
+      // Clear previous decoration
+      if (cursorDecorations.current[username]) {
+        editor.deltaDecorations(
+          [cursorDecorations.current[username].decorationId],
+          []
+        );
+        clearTimeout(cursorDecorations.current[username].timeout);
+      }
+
+      // Create new decoration
+      const decorationId = editor.deltaDecorations(
+        [],
+        [
+          {
+            range: new monacoRef.current.Range(
+              position.lineNumber,
+              position.column,
+              position.lineNumber,
+              position.column
+            ),
+            options: {
+              className,
+              stickiness:
+                monacoRef.current.editor.TrackedRangeStickiness
+                  .NeverGrowsWhenTypingAtEdges,
+              afterContentClassName: `${className}-label`,
+            },
           },
-        },
-      ];
+        ]
+      );
 
-      // Add new decorations and store the IDs
-      decorationIds = editor.deltaDecorations([], newDecorations);
+      // Store reference with timeout
+      cursorDecorations.current[username] = {
+        decorationId: decorationId[0],
+        timeout: setTimeout(() => {
+          editor.deltaDecorations([decorationId[0]], []);
+          delete cursorDecorations.current[username];
+        }, 2000),
+      };
     });
 
     // Cleanup on unmount
     return () => {
       socketRef.current?.off(Actions.CURSOR_POSITION);
-      decorationIds = [];
     };
   }
 
