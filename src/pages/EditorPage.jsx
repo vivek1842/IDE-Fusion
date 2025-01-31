@@ -8,6 +8,7 @@ import Actions from '../Actions';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
+
 const EditorPage = () => {
 
   const [code, setCode] = useState('// Write your code here');
@@ -20,6 +21,8 @@ const EditorPage = () => {
 
   const sidebarRef = useRef(null);
   const editorRef = useRef(null);
+
+  const monacoRef = useRef(null);
 
 
   const socketRef = useRef(null);
@@ -143,6 +146,72 @@ const EditorPage = () => {
     }
   };
 
+  const handleEditorMount = (editor,  monacoInstance) => {
+    monacoRef.current = monacoInstance;
+
+    let decorationIds = [];
+    let timeoutId = null;
+
+    // Send cursor position with throttling
+    const sendCursorPosition = (position) => {
+      socketRef.current.emit(Actions.CURSOR_POSITION, {
+        roomId,
+        position,
+        username: location.state?.username,
+      });
+    };
+
+    // Throttle cursor updates
+    const throttleCursorUpdates = (e) => {
+      if (timeoutId) return;
+      timeoutId = setTimeout(() => {
+        sendCursorPosition(e.position);
+        timeoutId = null;
+      }, 100);
+    };
+
+    editor.onDidChangeCursorPosition((e) => {
+      isUserTyping.current = true;
+      throttleCursorUpdates(e);
+    });
+
+    // Receive cursor positions
+    socketRef.current.on(Actions.CURSOR_POSITION, ({ position, username }) => {
+      // Clear previous decorations
+      decorationIds = editor.deltaDecorations(decorationIds, []);
+
+      const newDecorations = [
+        {
+          range: new monacoRef.current.Range(
+            position.lineNumber,
+            position.column,
+            position.lineNumber,
+            position.column
+          ),
+          options: {
+            className: "remote-cursor",
+            hoverMessage: { value: username },
+            stickiness:
+              monacoRef.current.editor.TrackedRangeStickiness
+                .NeverGrowsWhenTypingAtEdges,
+            afterContentClassName: `remote-cursor-${username.replace(
+              /\s/g,
+              "-"
+            )}`,
+          },
+        },
+      ];
+
+      // Add new decorations and store the IDs
+      decorationIds = editor.deltaDecorations([], newDecorations);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      socketRef.current?.off(Actions.CURSOR_POSITION);
+      decorationIds = [];
+    };
+  }
 
   const handleCopyRoomId = () => {
     navigator.clipboard.writeText(roomId);
@@ -297,16 +366,7 @@ const EditorPage = () => {
               beforeMount={(monaco) => {
                 monaco.editor.setTheme('vs-dark');
               }}
-              onMount={(editor) => {
-                // Enable typing detection
-                editor.onDidChangeCursorPosition(() => {
-                  isUserTyping.current = true;
-                });
-                
-                editor.onDidBlurEditorWidget(() => {
-                  isUserTyping.current = false;
-                });
-              }}
+              onMount={handleEditorMount}
             />
           </div>
 

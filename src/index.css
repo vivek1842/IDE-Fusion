@@ -1,1 +1,21 @@
 @import "tailwindcss";
+
+.remote-cursor {
+    position: absolute;
+    border-left: 2px solid #4fb0ff;
+    margin-left: -1px;
+    height: 1.2em !important;
+  }
+  
+  .remote-cursor::after {
+    content: attr(data-username);
+    position: absolute;
+    top: -1.5em;
+    left: -2px;
+    background: #4fb0ff;
+    color: white;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
