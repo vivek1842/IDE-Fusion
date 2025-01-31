@@ -274,7 +274,7 @@ const EditorPage = () => {
               height="100%"
               defaultLanguage="javascript"
               value={code}
-              onChange={(value) => setCode(value || "")}
+              onChange={handleEditorChange}
               theme="vs-dark"
               options={{
                 fontSize: 14,
@@ -284,6 +284,28 @@ const EditorPage = () => {
                 scrollBeyondLastLine: false,
                 smoothScrolling: true,
                 automaticLayout: true,
+                cursorBlinking: "smooth",
+                cursorStyle: "line",
+                cursorWidth: 2,
+                quickSuggestions: false,
+                suggestOnTriggerCharacters: false,
+                selectionHighlight: false,
+                renderLineHighlight: "none",
+                lineNumbersMinChars: 3,
+                scrollBeyondLastColumn: 5,
+              }}
+              beforeMount={(monaco) => {
+                monaco.editor.setTheme('vs-dark');
+              }}
+              onMount={(editor) => {
+                // Enable typing detection
+                editor.onDidChangeCursorPosition(() => {
+                  isUserTyping.current = true;
+                });
+                
+                editor.onDidBlurEditorWidget(() => {
+                  isUserTyping.current = false;
+                });
               }}
             />
           </div>
