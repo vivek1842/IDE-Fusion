@@ -16,6 +16,8 @@ const EditorPage = () => {
   const [language, setLanguage] = useState('javascript'); // Default language
   const [customInput, setCustomInput] = useState('');
 
+  const isUserTyping = useRef(false);
+
   const sidebarRef = useRef(null);
   const editorRef = useRef(null);
 
@@ -77,16 +79,17 @@ const EditorPage = () => {
       });
       console.log(roomId, location.state);
 
+      // listening SYNC Users Event
+      socketRef.current.on(Actions.SYNC_USERS, (clients) => {
+        setUsers(clients);
+      });
+
       // listening JOINED Event
       socketRef.current.on(Actions.JOINED, ({ clients, username, socketId}) => {
         if(username !== location.state?.username) {
           toast.success(`${username} joined the room.`)
           console.log(`${username} joined`);
         }
-        // const uniqueClients = Array.from(new Set(clients.map(client => client.socketId)))
-        // .map(socketId => {
-        //   return clients.find(client => client.socketId === socketId);
-        // });
         setUsers(clients);
       })
 
@@ -97,6 +100,17 @@ const EditorPage = () => {
           return prev.filter((user) => user.socketId !== socketId);
         })
       })
+
+      //synchronization listener
+      socketRef.current.on(Actions.CODE_CHANGE, (newCode) => {
+        isUserTyping.current = false;
+        setCode(newCode);
+      });
+
+      // Receive initial code when joining
+      socketRef.current.on(Actions.SYNC_CODE, (code) => {
+        setCode(code);
+      });
       
     }
 
@@ -108,6 +122,7 @@ const EditorPage = () => {
 
       if (socketRef.current) {
         socketRef.current.off(Actions.JOINED);
+        socketRef.current.off(Actions.SYNC_USERS);
         socketRef.current.off(Actions.DISCONNECTED);
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -116,7 +131,18 @@ const EditorPage = () => {
     };
 
 
-  },[])
+  },[]);
+
+  const handleEditorChange = (value) => {
+    if (isUserTyping.current) {
+      setCode(value);
+      socketRef.current.emit(Actions.CODE_CHANGE, {
+        roomId,
+        code: value
+      });
+    }
+  };
+
 
   const handleCopyRoomId = () => {
     navigator.clipboard.writeText(roomId);

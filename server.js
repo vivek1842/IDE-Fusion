@@ -12,6 +12,7 @@ const server = createServer(app); //create http server and pass this express ser
 const io = new Server(server); //instance of Server class (from socket.io)
 
 const userSocketMap = {}; //w're mapping and storing users in memory, after every restart, it'll be deleted (to avoid that we can save in mongodb or redis memory storage)
+const roomCodeMap = {}; // Store code for each room
 let i =0;
 
 const getAllConnectedClients = (roomId) => {
@@ -56,6 +57,11 @@ io.on('connection', (socket) => {
         });
     })
 
+    socket.on(Actions.CODE_CHANGE, ({ roomId, code }) => {
+        roomCodeMap[roomId] = code;
+        socket.to(roomId).emit(Actions.CODE_CHANGE, code);
+      });
+
     // Handle disconnections
     socket.on('disconnecting', () => { //should not be'disconnect' as it will remove all rooms available
         const rooms = [...socket.rooms];
@@ -67,6 +73,11 @@ io.on('connection', (socket) => {
         })
         delete userSocketMap[socket.id];
         socket.leave(); //leave the room
+
+        // Cleanup room code if empty
+        if (rooms.length === 0) {
+            delete roomCodeMap[roomId];
+        }
     });
 
     
