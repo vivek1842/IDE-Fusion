@@ -189,6 +189,10 @@ const EditorPage = () => {
     };
   }, []);
 
+  const handleLeaveRoom = () => {
+    reactNavigator('/');
+  }
+
   const handleEditorChange = (value) => {
     if (isUserTyping.current) {
       setCode(value);
@@ -317,7 +321,10 @@ const EditorPage = () => {
           >
             Copy Room ID
           </button>
-          <button className="w-full bg-red-500/90 hover:bg-red-400/90 text-white py-2 sm:py-2.5 rounded-md font-medium text-sm sm:text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50">
+          <button 
+            onClick={handleLeaveRoom}
+            className="w-full bg-red-500/90 hover:bg-red-400/90 text-white py-2 sm:py-2.5 rounded-md font-medium text-sm sm:text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+          >
             Leave Room
           </button>
         </div>
