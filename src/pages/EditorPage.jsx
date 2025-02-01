@@ -81,6 +81,11 @@ const EditorPage = () => {
         // Receive initial code when joining
         const handleSyncCode = (code) => {
           setCode(code);
+          isUserTyping.current = true; // Prevent triggering code change event
+          setCode(code);
+          setTimeout(() => {
+            isUserTyping.current = false;
+          }, 100);
         };
 
         const handleRemoteCursor = ({ position, username, color }) => {

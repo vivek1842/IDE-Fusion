@@ -37,27 +37,28 @@ io.on('connection', (socket) => {
     
 
     socket.on(Actions.JOIN, ({ roomId, username }) => {
-         // Ensure the user isn't already in the room
-        // if (Object.values(userSocketMap).includes(username)) {
-        //     socket.emit(Actions.ERROR, { message: "You are already in the room" });
-        //     return;
-        // }
+      userSocketMap[socket.id] = username;
+      socket.join(roomId); //rooms create in our socket
+      const clients = getAllConnectedClients(roomId);
+      console.log(clients);
 
-        userSocketMap[socket.id] = username;
-        socket.join(roomId); //rooms create in our socket
-        const clients =  getAllConnectedClients(roomId);
-        console.log(clients);
-
-         // Emit to other clients in the room, excluding the joining user
-        clients.forEach(({ socketId }) => {
-            if (socketId !== socket.id) { // Don't send the event to the joining user
-                io.to(socketId).emit(Actions.JOINED, {
-                    clients,
-                    username,
-                    socketId: socket.id,
-                }
-            )};
-        });
+      // Emit to other clients in the room, excluding the joining user
+      clients.forEach(({ socketId }) => {
+        if (socketId !== socket.id) {
+          // Don't send the event to the joining user
+          io.to(socketId).emit(Actions.JOINED, {
+            clients,
+            username,
+            socketId: socket.id,
+          });
+        }
+      });
+      // Send existing code to new user
+      if (roomCodeMap[roomId]) {
+        socket.emit(Actions.SYNC_CODE, roomCodeMap[roomId]);
+      }
+      // Notify all users in the room about the new user list
+      io.to(roomId).emit(Actions.SYNC_USERS, clients);
     })
 
     socket.on(Actions.CODE_CHANGE, ({ roomId, code }) => {
