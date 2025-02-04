@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import React, { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import Editor from '@monaco-editor/react';
@@ -80,7 +79,6 @@ const EditorPage = () => {
 
         // Receive initial code when joining
         const handleSyncCode = (code) => {
-          setCode(code);
           isUserTyping.current = true; // Prevent triggering code change event
           setCode(code);
           setTimeout(() => {
